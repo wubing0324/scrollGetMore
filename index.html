@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Document</title>
+  <style>
+    *{
+      margin: 0;
+      padding: 0;
+    }
+    html{
+      font-size: 312.5%;
+    }
+    .container{
+      width: 7.5rem;
+      overflow: hidden;
+    }
+    #ulBox{
+      width: 7.45rem;
+      padding: 0;
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+    }
+    #ulBox li{
+      list-style: none;
+      width: 3.7rem;
+      text-align: center;
+    }
+    #ulBox li img{
+      width: 3.7rem;
+      height: 3.7rem;
+      display: block;
+      border-radius: 4px;
+    }
+    .title{
+      font-size: .24rem;
+      font-weight: 600;
+      text-align: left;
+      padding: 0 4px;
+      margin: 5px 0 2px;
+      height: .30rem;
+      line-height: .30rem;
+    }
+    .content{
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 0 5px;
+      margin-bottom: 5px;
+      height: .30rem;
+      line-height: .30rem;
+    }
+    .small{
+      font-size: .16rem;
+      color: #aaa;
+    }
+    .money{
+      font-size: .24rem;
+      font-weight: 600;
+      color: red;
+    }
+    .line{
+      width: 100%;
+      clear: both;
+      font-size: .30rem;
+      color: #aaa;
+      text-align: center;
+      margin: 5px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <ul id="ulBox">
+    </ul>
+    <P class="line">我也是有底线的~</P>
+  </div>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <script>
+    var HTML = document.getElementsByTagName('html')[0];
+    var HEIGHT = 200
+    var LAST_PAGE = 0;
+    var PAGE_NUMBER = 1;
+    var FINISH = true;
+    var TOTAL = 0;
+    var IMGLIST = '';
+    //窗口可视范围高度
+    var CLIENTHEIGHT = window.innerHeight || Math.min(document.documentElement.clientHeight,document.body.clientHeight);
+    var initScreen=function(){
+      var fontSize = document.documentElement.clientWidth / 750 * 625
+      HTML.style.fontSize = fontSize + "%"
+      HEIGHT = fontSize / 100 * 16 * 3.7
+    }
+    setTimeout(function(){
+      initScreen();
+      // window.addEventListener("onorientationchange" in window ? "orientationchange" : "resize", function(e){initScreen(e);}, false);
+      window.addEventListener("resize", function(e){initScreen(e);}, false);
+      //监测页面宽度的改变和横竖屏的变化，变化则调用initScreen
+    },100)
+    function throttle(fn, time){
+      var invoke = true;
+      return function () {
+        if (!invoke) return;
+        invoke = false;
+        var self = this;
+        var args = arguments
+        setTimeout(function(){
+          fn.apply(self, args);
+          invoke = true;
+        }, time)
+      }
+    }
+    function proxyImg(img, url) {
+      var ig = new Image();
+      ig.src = url
+      ig.onload = function() {
+        img.setAttribute('src', url);
+      }
+    }
+    function queryImg(list, clientHeight, scrollTop) {
+      list.forEach(function(img, index){
+        if (img) {
+          if (img.offsetTop <= clientHeight + scrollTop) {
+            var url = img.getAttribute('data-src')
+            proxyImg(img, url)
+            list[index] = null
+          }
+        }
+      })
+    }
+    function getFun(){
+      var ul = document.getElementById('ulBox');
+      var fragment = document.createDocumentFragment();
+      var list = []
+      var dataToDom = function (data){
+        for(var i = 0; i < data.length; i++) {
+          var li = document.createElement("LI");
+          var img = document.createElement("IMG");
+          img.setAttribute('src', './imgs/loading.gif');
+          img.setAttribute('data-src', data[i].image);
+          var title = document.createElement("P");
+          title.classList.add('title');
+          title.innerText = data[i].name;
+          var small = document.createElement("SPAN");
+          var money = document.createElement("SPAN");
+          small.classList.add('small');
+          small.innerText = data[i].description;
+          money.classList.add('money');
+          money.innerText = '￥ ' +  data[i].price;
+          var content = document.createElement("P");
+          content.classList.add('content');
+          content.appendChild(small);
+          content.appendChild(money);
+          li.appendChild(img);
+          li.appendChild(title);
+          li.appendChild(content);
+          fragment.appendChild(li);
+          list.push(img)
+        }
+        ul.appendChild(fragment)
+        return list
+      }
+      return dataToDom
+    }
+    
+    function scrollHandlerfunction() {
+      if (!FINISH) {
+        return
+      }
+      //文档内容实际高度（包括超出视窗的溢出部分）
+      var scrollHeight = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
+      //滚动条滚动距离
+      var scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop;
+      
+      queryImg(IMGLIST, CLIENTHEIGHT, scrollTop)
+      if (PAGE_NUMBER >= LAST_PAGE) {
+        return
+      }
+      console.log(HEIGHT)
+      if(CLIENTHEIGHT + scrollTop >= scrollHeight - HEIGHT){
+        PAGE_NUMBER++
+        getData()
+      }
+    }
+    
+    function getData() {
+      FINISH = false
+      axios({
+        method: 'post',
+        url: 'http://47.95.148.78/neckpets/getBlindBoxSeriesLitByTabType.json',
+        data: {
+          requestData: {
+            "userToken":"8ed7ddfde5ca37849b7c43591957d7fb73adc2a1",
+            "pageNumber": PAGE_NUMBER
+          }
+        },
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        transformRequest: function(data) {
+          var arr = [];
+          for (var name in data) {
+             arr.push(encodeURIComponent(name) + "=" + JSON.stringify(data[name]));
+          }
+          arr.push(("v=" + Math.random()).replace(".", ""));
+          return arr.join("&");
+        }
+      }).then(function(res){
+        FINISH = true
+        TOTAL = res.data.total
+        LAST_PAGE = Math.ceil(TOTAL / 20)
+        IMGLIST = dataToDom(res.data.data)
+        //滚动条滚动距离
+        var scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop;
+        queryImg(IMGLIST, CLIENTHEIGHT, scrollTop)
+      }).catch(function(err){
+        FINISH = true
+        PAGE_NUMBER--
+      });
+    }
+
+    var dataToDom = getFun()
+    var cb = throttle(scrollHandlerfunction, 200)
+    document.addEventListener('scroll', cb, false)
+    getData()
+  </script>
+</body>
+</html>
